@@ -21,6 +21,12 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      - name: Random delay (0-120 min)
+        run: |
+          DELAY=$((RANDOM % 121))
+          echo "Sleeping ${DELAY} minutes..."
+          sleep ${DELAY}m
+
       - name: Run check-in
         env:
           GM_USERNAME: ${{ secrets.GM_USERNAME }}
