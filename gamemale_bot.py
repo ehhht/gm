@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import json
+import random
 import hashlib
 import logging
 from http.cookies import SimpleCookie
@@ -58,7 +59,13 @@ class GameMaleBot:
         self.retry_count = 3
         self.retry_delay = 5
 
+    def _human_delay(self, min_sec=1, max_sec=5):
+        delay = random.uniform(min_sec, max_sec)
+        logger.debug(f"等待 {delay:.1f} 秒...")
+        time.sleep(delay)
+
     def _request(self, method, url, **kwargs):
+        self._human_delay(0.5, 3)
         for attempt in range(self.retry_count):
             try:
                 resp = self.session.request(method, url, timeout=30, **kwargs)
@@ -520,13 +527,21 @@ class GameMaleBot:
         if not self.login():
             logger.error("登录失败，任务终止")
             return False
+        self._human_delay(3, 8)
+        logger.info("浏览论坛首页...")
+        self._request("GET", f"{BASE_URL}/forum.php")
+        self._human_delay(5, 15)
         results = {}
         logger.info("-" * 30)
         results["签到"] = self.sign_k_misign()
         logger.info("-" * 30)
-        time.sleep(2)
+        self._human_delay(10, 30)
         results["日常卡片"] = self.daily_card_it618()
         logger.info("-" * 30)
+        self._human_delay(3, 10)
+        logger.info("浏览后返回...")
+        self._request("GET", f"{BASE_URL}/forum.php")
+        self._human_delay(2, 5)
         logger.info("任务执行结果汇总:")
         all_success = True
         for task, success in results.items():
