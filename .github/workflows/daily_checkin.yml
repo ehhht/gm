@@ -1,0 +1,30 @@
+name: GameMale Daily Check-in
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run check-in
+        env:
+          GM_USERNAME: ${{ secrets.GM_USERNAME }}
+          GM_PASSWORD: ${{ secrets.GM_PASSWORD }}
+          GM_COOKIE: ${{ secrets.GM_COOKIE }}
+        run: |
+          python gamemale_bot.py
