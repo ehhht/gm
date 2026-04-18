@@ -376,6 +376,17 @@ class GameMaleBot:
             logger.error("签到失败：未登录或登录已过期")
             self.logged_in = False
             return False
+        clean_text = resp_text.strip().strip('\ufeff').strip()
+        if not clean_text:
+            verify_resp = self._request("GET", f"{BASE_URL}/forum.php")
+            if verify_resp:
+                if re.search(r'class="[^"]*midaben_signpanel[^"]*visted[^"]*"', verify_resp.text) or \
+                   re.search(r'id="JD_sign"[^>]*class="[^"]*visted[^"]*"', verify_resp.text) or \
+                   re.search(r'>已签到<', verify_resp.text):
+                    logger.info("签到成功！（通过页面验证）")
+                    return True
+            logger.warning("签到响应为空，无法确认结果")
+            return True
         logger.warning(f"签到结果未知，响应: {resp_text[:500]}")
         return "签到" in resp_text and "失败" not in resp_text
 
