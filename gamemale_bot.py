@@ -521,6 +521,10 @@ class GameMaleBot:
             return None
 
     def run(self):
+        if not DEBUG:
+            startup_delay = random.randint(0, 120 * 60)
+            logger.info(f"随机启动延迟: {startup_delay // 60} 分钟 {startup_delay % 60} 秒")
+            time.sleep(startup_delay)
         logger.info("=" * 50)
         logger.info("GameMale 每日自动任务开始")
         logger.info("=" * 50)
