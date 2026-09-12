@@ -492,9 +492,11 @@ class GameMaleBot:
                 logger.info("今日已抽卡（服务端返回空结果）")
                 return True
             elif tipvalue and re.search(
-                r'只能抽奖|每天只能|已抽奖|已抽过|已经抽奖|已用完|明天再来', str(tipvalue)
+                r'只能抽奖|每天只能|已抽奖|已抽过|已经抽奖|已用完|明天再来'
+                r'|正在处理中|请勿重复点击|请求正在处理', str(tipvalue)
             ):
-                # 形如"抱歉，每会员每天只能抽奖1次！"属于今日已抽，不是失败
+                # 形如"抱歉，每会员每天只能抽奖1次！"或"抽奖请求正在处理中，请勿重复点击"
+                # 都属于今日已抽/已在处理，不是失败
                 logger.info(f"今日已抽卡（服务端提示）: {tipvalue}")
                 return True
             else:
