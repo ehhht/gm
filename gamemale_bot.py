@@ -21,8 +21,23 @@ BASE_URL = "https://www.gamemale.com"
 DEBUG = os.environ.get("GM_DEBUG", "").lower() in ("1", "true", "yes")
 DEBUG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug")
 
+# 站点安装了 dev8133_cloudflare 插件（Cloudflare Turnstile 人机验证），
+# 对所有普通浏览器 UA 都返回门禁页，导致抓不到 formhash、登录必然失败。
+# 该插件对搜索引擎爬虫 UA 放行，因此按顺序使用爬虫 UA；可用 GM_USER_AGENT 覆盖。
+BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+CRAWLER_UAS = [
+    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+    "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)",
+    "Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)",
+]
+_custom_ua = os.environ.get("GM_USER_AGENT", "").strip()
+USER_AGENTS = ([_custom_ua] if _custom_ua else []) + CRAWLER_UAS
+
+# dev8133_cloudflare 门禁页特征
+GATE_MARKERS = ("dev8133_cloudflare", "challenges.cloudflare.com/turnstile")
+
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "User-Agent": USER_AGENTS[0],
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
     "Connection": "keep-alive",
@@ -47,6 +62,19 @@ def _save_debug(name, content, is_binary=False):
         logger.debug(f"保存调试文件失败: {e}")
 
 
+def _is_gate_page(resp):
+    """识别 dev8133_cloudflare 插件返回的 Turnstile 人机验证门禁页。"""
+    if resp is None:
+        return False
+    ctype = (resp.headers.get("Content-Type") or "").lower()
+    if ctype and not any(k in ctype for k in ("html", "text", "xml", "json")):
+        return False
+    body = resp.text or ""
+    if len(body) > 50000:
+        return False
+    return any(marker in body for marker in GATE_MARKERS)
+
+
 class GameMaleBot:
     def __init__(self, username=None, password=None, cookie_str=None):
         self.session = requests.Session()
@@ -66,14 +94,26 @@ class GameMaleBot:
 
     def _request(self, method, url, **kwargs):
         self._human_delay(0.5, 3)
-        for attempt in range(self.retry_count):
-            try:
-                resp = self.session.request(method, url, timeout=30, **kwargs)
-                return resp
-            except requests.RequestException as e:
-                logger.warning(f"请求失败 (尝试 {attempt + 1}/{self.retry_count}): {e}")
-                if attempt < self.retry_count - 1:
-                    time.sleep(self.retry_delay)
+        extra_headers = dict(kwargs.pop("headers", None) or {})
+        last_resp = None
+        for ua in USER_AGENTS:
+            headers = {"User-Agent": ua}
+            headers.update(extra_headers)
+            for attempt in range(self.retry_count):
+                try:
+                    resp = self.session.request(method, url, timeout=30, headers=headers, **kwargs)
+                    last_resp = resp
+                    if _is_gate_page(resp):
+                        logger.warning(f"命中人机验证门禁页，切换 UA 重试: {ua[:48]}")
+                        break
+                    return resp
+                except requests.RequestException as e:
+                    logger.warning(f"请求失败 (尝试 {attempt + 1}/{self.retry_count}): {e}")
+                    if attempt < self.retry_count - 1:
+                        time.sleep(self.retry_delay)
+        if last_resp is not None:
+            logger.error(f"所有 UA 均被门禁拦截，请更新 GM_USER_AGENT: {url}")
+            return last_resp
         logger.error(f"请求最终失败: {url}")
         return None
 
