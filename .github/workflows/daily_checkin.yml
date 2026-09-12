@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      no_delay:
+        description: '跳过随机启动延迟（仅测试用）'
+        type: boolean
+        default: false
 
 jobs:
   checkin:
@@ -26,5 +31,6 @@ jobs:
           GM_USERNAME: ${{ secrets.GM_USERNAME }}
           GM_PASSWORD: ${{ secrets.GM_PASSWORD }}
           GM_COOKIE: ${{ secrets.GM_COOKIE }}
+          GM_SKIP_DELAY: ${{ inputs.no_delay && '1' || '' }}
         run: |
           python gamemale_bot.py
