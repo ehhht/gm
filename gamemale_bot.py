@@ -352,7 +352,13 @@ class GameMaleBot:
                     else:
                         logger.warning("验证码识别为空")
                 else:
-                    logger.warning("验证码图片下载失败")
+                    status = seccode_resp.status_code if seccode_resp is not None else "N/A"
+                    logger.warning(f"验证码图片下载失败 (HTTP {status})")
+                    if status == 403:
+                        logger.error(
+                            "misc.php 已被 Cloudflare 拦截(403)，密码登录无法完成；"
+                            "请改用 Cookie 登录，即配置 Secrets 中的 GM_COOKIE"
+                        )
             else:
                 logger.warning("登录页面有验证码标记但未提取到idhash")
         return self._login_submit(login_post_url, login_data, seccode_hash=seccode_hash)
@@ -561,7 +567,10 @@ class GameMaleBot:
             return None
 
     def run(self):
-        if not DEBUG:
+        skip_delay = os.environ.get("GM_SKIP_DELAY", "").lower() in ("1", "true", "yes")
+        if skip_delay:
+            logger.info("GM_SKIP_DELAY 已启用，跳过随机启动延迟")
+        elif not DEBUG:
             startup_delay = random.randint(0, 120 * 60)
             logger.info(f"随机启动延迟: {startup_delay // 60} 分钟 {startup_delay % 60} 秒")
             time.sleep(startup_delay)
