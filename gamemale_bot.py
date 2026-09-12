@@ -188,12 +188,12 @@ class GameMaleBot:
             self._update_formhash(html)
             logger.info(f"Cookie登录成功 (uid={uid_match.group(1)})")
             return True
-        if self._update_formhash(html):
-            if self.formhash:
-                self.logged_in = True
-                logger.info("Cookie登录成功（formhash已获取）")
-                return True
-        logger.error("Cookie登录失败，Cookie可能已过期")
+        # 注意：Discuz 给游客的页面同样包含 formhash，
+        # 因此绝不能用 formhash 判定登录成功，否则会对未登录状态误报成功。
+        logger.error(
+            "Cookie登录失败：当前仍是游客状态 (discuz_uid=0)，Cookie 可能已过期或不完整。"
+            "GM_COOKIE 必须包含 Discuz 的 auth cookie，形如 'xxxxxx_auth=...'"
+        )
         return False
 
     def _login_submit(self, login_post_url, login_data, seccode_hash=None, max_captcha_retries=5):
