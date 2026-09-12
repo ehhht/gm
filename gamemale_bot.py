@@ -491,6 +491,12 @@ class GameMaleBot:
             elif tipname == "" and tipvalue is None:
                 logger.info("今日已抽卡（服务端返回空结果）")
                 return True
+            elif tipvalue and re.search(
+                r'只能抽奖|每天只能|已抽奖|已抽过|已经抽奖|已用完|明天再来', str(tipvalue)
+            ):
+                # 形如"抱歉，每会员每天只能抽奖1次！"属于今日已抽，不是失败
+                logger.info(f"今日已抽卡（服务端提示）: {tipvalue}")
+                return True
             else:
                 logger.error(f"抽卡失败: {tipvalue}")
                 if tipvalue and ("登录" in tipvalue or "请先" in tipvalue):
